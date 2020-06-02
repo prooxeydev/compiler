@@ -59,7 +59,7 @@ pub fn (mut parser Parser) create_c_file(out string) {
 		for line in impl.code {
 			match parse_line(line) {
 				.function_call {
-					function, parameter := parser.parse_function(line) or { panic(err) }
+					function, parameter := impl.parse_function(line, parser) or { panic(err) }
 					mut param := ''
 					if parameter.len > 0 {
 						for par in parameter {
@@ -75,7 +75,13 @@ pub fn (mut parser Parser) create_c_file(out string) {
 					}
 				}
 				.definition {
-
+					vname, variable, overwrite := impl.parse_definition(line, parser) or { panic(err) }
+					impl.variables[vname] = variable
+					if overwrite {
+						lines << '	$vname = $variable.data;'
+					} else {
+						lines << '	X__$variable.typ.name $vname = $variable.data;'
+					}
 				}
 				.math {
 

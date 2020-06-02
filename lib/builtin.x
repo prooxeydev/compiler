@@ -1,3 +1,7 @@
+fn void<write(string msg) {
+	C.printf(msg)
+}
+
 fn void<writeln(string msg) {
 	C.printf(msg)
 }

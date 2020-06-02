@@ -6,5 +6,6 @@ def void => C.void
 def voidptr => C.void*
 
 fn void<main()
+fn void<write(string msg)
 fn void<writeln(string msg)
 fn voidptr<malloc(int size)

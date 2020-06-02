@@ -22,6 +22,13 @@ struct FunctionImplementation {
 mut:
 	function Function
 	code []string
+	variables map[string]Variable
+}
+
+struct Variable {
+mut:
+	data string
+	typ Defenition
 }
 
 struct Parser {
@@ -30,7 +37,7 @@ mut:
 	includes []string
 	defs []Defenition
 	functions []Function
-	function_implementations []FunctionImplementation
+	function_implementations []&FunctionImplementation
 	errors []Error
 }
 
@@ -48,7 +55,7 @@ pub fn create_empty_parser() Parser {
 		includes: []string{}
 		defs: []Defenition{}
 		functions: []Function{}
-		function_implementations: []FunctionImplementation{}
+		function_implementations: []&FunctionImplementation{}
 		errors: []Error{}
 	}
 }
@@ -58,7 +65,7 @@ fn (mut parser Parser)parse(file string) {
 	lines := content.trim_space().split_into_lines()
 	mut open_brackets := 0
 	mut open_func := 0
-	mut fn_impl := FunctionImplementation{}
+	mut fn_impl := &FunctionImplementation{}
 	for i, line in lines {
 		if line != '' {
 			data := line.split(' ')
@@ -175,7 +182,7 @@ fn (mut parser Parser)parse(file string) {
 									}
 									if end {
 										func := Function{name, return_val, parameter}
-										fn_impl = FunctionImplementation{func, []string{}}
+										fn_impl = &FunctionImplementation{func, []string{}}
 										if parser.check_func(func) {
 											open_func += 1
 										}
@@ -186,7 +193,7 @@ fn (mut parser Parser)parse(file string) {
 									}
 								} else {
 									func := Function{name, return_val, parameter}
-									fn_impl = FunctionImplementation{func, []string{}}
+									fn_impl = &FunctionImplementation{func, []string{}}
 									if parser.check_func(func) {
 										open_func += 1
 									}								
@@ -300,7 +307,7 @@ fn (mut parser Parser)parse(file string) {
 							open_func -= 1
 							if open_func == 0 {
 								parser.function_implementations << fn_impl
-								fn_impl = FunctionImplementation{}
+								fn_impl = &FunctionImplementation{}
 							}
 						} else {
 							fn_impl.code << src
@@ -355,4 +362,12 @@ fn (parser Parser) check_func_exists(name string) bool {
 fn (parser Parser) get_func(name string) Function {
 	filter := parser.functions.filter(name == it.name)
 	return filter[0]
+}
+
+fn (impl FunctionImplementation) check_variable(name string) bool {
+	return name in impl.variables
+}
+
+fn (impl FunctionImplementation) get_variable(name string) Variable {
+	return impl.variables[name]
 }
