@@ -6,7 +6,3 @@ def void => C.void
 
 fn void<main()
 fn void<writeln(string msg)
-
-fn void<writeln(string msg) {
-	C.printf(msg)
-}

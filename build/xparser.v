@@ -42,8 +42,8 @@ mut:
 	str_line string
 }
 
-fn parse(file string) Parser {
-	mut parser := Parser{
+pub fn create_empty_parser() Parser {
+	return Parser{
 		compile: true
 		includes: []string{}
 		defs: []Defenition{}
@@ -51,6 +51,9 @@ fn parse(file string) Parser {
 		function_implementations: []FunctionImplementation{}
 		errors: []Error{}
 	}
+}
+
+fn (mut parser Parser)parse(file string) {
 	content := os.read_file(file) or { panic(err) }
 	lines := content.trim_space().split_into_lines()
 	mut open_brackets := 0
@@ -69,15 +72,8 @@ fn parse(file string) Parser {
 							parser.compile = false
 						}
 						path := './lib/$name'
-						tmp := parse(path)
-						parser.includes << tmp.includes
-						parser.defs << tmp.defs
-						parser.functions << tmp.functions
-						parser.function_implementations << tmp.function_implementations
-						parser.errors << tmp.errors
-						if !tmp.compile {
-							parser.compile = false
-						}
+						parser.parse(path)
+						parser.parse(path.substr(0, path.len - 1))
 					} else if data[1].starts_with('\'') && data[1].ends_with('\'') || data[1].starts_with('"') && data[1].ends_with('"') {
 						//local
 						name := data[1].replace('"', '').replace('"', '')
@@ -86,15 +82,8 @@ fn parse(file string) Parser {
 							parser.compile = false
 						}
 						path := './$name'
-						tmp := parse(path)
-						parser.includes << tmp.includes
-						parser.defs << tmp.defs
-						parser.functions << tmp.functions
-						parser.function_implementations << tmp.function_implementations
-						parser.errors << tmp.errors
-						if !tmp.compile {
-							parser.compile = false
-						}
+						parser.parse(path)
+						parser.parse(path.substr(0, path.len - 1))
 					} else {
 						//error
 						parser.errors << Error{i, file, 'Syntax error: not used <> or ""/\'\'', line}
@@ -307,8 +296,6 @@ fn parse(file string) Parser {
 			}
 		}
 	}
-
-	return parser
 }
 
 fn (parser Parser) write_errors() {

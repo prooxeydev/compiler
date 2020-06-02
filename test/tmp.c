@@ -15,7 +15,6 @@ void X__main () {
 	X__writeln ("Hello world!");
 }
 
-
 int main() {
 	X__main();
 	return 0;
