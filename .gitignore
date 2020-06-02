@@ -3,3 +3,4 @@ compiler
 *.so
 *.dylib
 *.dll
+test

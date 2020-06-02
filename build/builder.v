@@ -11,6 +11,7 @@ pub fn build(path string, args []string) {
 	mod := parse_x_mod(path)
 	builder.mod = mod
 	builder.output = '$path/tmp.c'
-	parser := parse('$mod.path/$mod.main')
+	mut parser := parse('$mod.path/$mod.main')
+	parser.write_errors()
 	parser.create_c_file(builder.output)
 }

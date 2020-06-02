@@ -2,11 +2,6 @@ module build
 
 import os
 
-struct Import {
-	path string
-	parser Parser
-}
-
 struct Defenition {
 	name string
 	to []string
@@ -24,6 +19,7 @@ struct Function {
 }
 
 struct FunctionImplementation {
+mut:
 	function Function
 	code []string
 }
@@ -31,7 +27,7 @@ struct FunctionImplementation {
 struct Parser {
 mut:
 	compile bool
-	imports []Import
+	includes []string
 	defs []Defenition
 	functions []Function
 	function_implementations []FunctionImplementation
@@ -49,7 +45,7 @@ mut:
 fn parse(file string) Parser {
 	mut parser := Parser{
 		compile: true
-		imports: []Import{}
+		includes: []string{}
 		defs: []Defenition{}
 		functions: []Function{}
 		function_implementations: []FunctionImplementation{}
@@ -59,6 +55,7 @@ fn parse(file string) Parser {
 	lines := content.trim_space().split_into_lines()
 	mut open_brackets := 0
 	mut open_func := 0
+	mut fn_impl := FunctionImplementation{}
 	for i, line in lines {
 		if line != '' {
 			data := line.split(' ')
@@ -73,7 +70,14 @@ fn parse(file string) Parser {
 						}
 						path := './lib/$name'
 						tmp := parse(path)
-						parser.imports << Import{path, tmp}
+						parser.includes << tmp.includes
+						parser.defs << tmp.defs
+						parser.functions << tmp.functions
+						parser.function_implementations << tmp.function_implementations
+						parser.errors << tmp.errors
+						if !tmp.compile {
+							parser.compile = false
+						}
 					} else if data[1].starts_with('\'') && data[1].ends_with('\'') || data[1].starts_with('"') && data[1].ends_with('"') {
 						//local
 						name := data[1].replace('"', '').replace('"', '')
@@ -83,7 +87,14 @@ fn parse(file string) Parser {
 						}
 						path := './$name'
 						tmp := parse(path)
-						parser.imports << Import{path, tmp}
+						parser.includes << tmp.includes
+						parser.defs << tmp.defs
+						parser.functions << tmp.functions
+						parser.function_implementations << tmp.function_implementations
+						parser.errors << tmp.errors
+						if !tmp.compile {
+							parser.compile = false
+						}
 					} else {
 						//error
 						parser.errors << Error{i, file, 'Syntax error: not used <> or ""/\'\'', line}
@@ -133,55 +144,64 @@ fn parse(file string) Parser {
 								name := fn_data[0]
 								mut parameter := []Parameter{}
 								params := fn_data[1].split(',')
-								mut last_typ := ''
-								mut end := false
-								for param in params {
-									par := param.trim_space().split(' ')
-									if par.len == 1 {
-										if parser.check_typ(last_typ) {
-											mut pname := par[0]
-											if par[0].ends_with(')') {
-												open_brackets -= 1
-												end = true
-												pname = pname.replace(')', '')
+								if params[0].split(' ')[0] != ')' {
+									mut last_typ := ''
+									mut end := false
+									for param in params {
+										par := param.substr(0, param.len - 1).trim_space().split(' ')
+										if par.len == 1 {
+											if parser.check_typ(last_typ) {
+												mut pname := par[0]
+												if par[0].ends_with(')') {
+													open_brackets -= 1
+													end = true
+													pname = pname.replace(')', '')
+												}
+												parameter << Parameter{pname, parser.get_typ(last_typ)}											
+											} else {
+												//error
+												parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
+												parser.compile = false
 											}
-											parameter << Parameter{pname, parser.get_typ(last_typ)}											
+										} else if par.len == 2 {
+											last_typ = par[0]
+											if parser.check_typ(last_typ) {
+												mut pname := par[1]
+												if par[1].ends_with(')') {
+													open_brackets -= 1
+													end = true
+													pname = pname.replace(')', '')
+												}
+												parameter << Parameter{pname, parser.get_typ(last_typ)}											
+											} else {
+												//error
+												parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
+												parser.compile = false
+											}
 										} else {
 											//error
-											parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
+											parser.errors << Error{i, file, 'Wrong amount of data, maybe you missed a `,`', line}
 											parser.compile = false
 										}
-									} else if par.len == 2 {
-										last_typ = par[0]
-										if parser.check_typ(last_typ) {
-											mut pname := par[1]
-											if par[1].ends_with(')') {
-												open_brackets -= 1
-												end = true
-												pname = pname.replace(')', '')
-											}
-											parameter << Parameter{pname, parser.get_typ(last_typ)}											
-										} else {
-											//error
-											parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
-											parser.compile = false
+									}
+									if end {
+										func := Function{name, return_val, parameter}
+										fn_impl = FunctionImplementation{func, []string{}}
+										if parser.check_func(func) {
+											open_func += 1
 										}
 									} else {
 										//error
-										parser.errors << Error{i, file, 'Wrong amount of data, maybe you missed a `,`', line}
+										parser.errors << Error{i, file, 'Syntax error: Bracked wasn\'t closed', line}
 										parser.compile = false
 									}
-								}
-								if end {
-									function := Function{name, return_val, parameter}
-									if parser.check_func(function) {
-										println('contains')
-									}
 								} else {
-									//error
-									parser.errors << Error{i, file, 'Syntax error: Bracked wasn\'t closed', line}
-									parser.compile = false
-								}		
+									func := Function{name, return_val, parameter}
+									fn_impl = FunctionImplementation{func, []string{}}
+									if parser.check_func(func) {
+										open_func += 1
+									}								
+								}	
 							} else {
 								//error
 								parser.errors << Error{i, file, 'Syntax error: Something went wrong', line}
@@ -267,27 +287,34 @@ fn parse(file string) Parser {
 						}
 					}
 				}
+				'#include' {
+					parser.includes << line
+				}
 				else {
-
+					if open_func > 0 {
+						src := line.trim_space()
+						if src.contains('}') {
+							open_func -= 1
+							if open_func == 0 {
+								parser.function_implementations << fn_impl
+								fn_impl = FunctionImplementation{}
+							}
+						} else {
+							fn_impl.code << src
+						}
+					}
 				}
 			}
 		}
 	}
-	for im in parser.imports {
-		if !im.parser.compile {
-			parser.compile = false
-		}
-		parser.errors << im.parser.errors
-		parser.defs << im.parser.defs
-		parser.functions << im.parser.functions
-	}
+
 	return parser
 }
 
 fn (parser Parser) write_errors() {
 	for error in parser.errors {
 		println('---------------------------------------------------')
-		println('$error.file_path:$error.line: error: $error.error_msg')
+		println('$error.file_path:${error.line + 1}: error: $error.error_msg')
 		println(error.str_line)
 	}
 }
@@ -317,4 +344,14 @@ fn (parser Parser) check_func(func Function) bool {
 		}
 	}
 	return ret
+}
+
+fn (parser Parser) check_func_exists(name string) bool {
+	filter := parser.functions.filter(name == it.name)
+	return filter.len == 1
+}
+
+fn (parser Parser) get_func(name string) Function {
+	filter := parser.functions.filter(name == it.name)
+	return filter[0]
 }
