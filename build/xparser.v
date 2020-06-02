@@ -4,7 +4,7 @@ import os
 
 struct Defenition {
 	name string
-	to []string
+	to string
 }
 
 struct Parameter {
@@ -98,14 +98,11 @@ fn (mut parser Parser)parse(file string) {
 					} 
 				}
 				'def' {
-					mut after := ''
-					for d in data[1..] {
-						after += d
-					}
+					mut after := line.replace(data[0] + ' ', '')
 					def := after.trim_space().split('=>')
 					if def.len > 1 {
-						name := def[0]
-						to := def[1].split(' ')
+						name := def[0].trim_space()
+						to := def[1].trim_space()
 						if to.len == 0 {
 							parser.errors << Error{i, file, 'Syntax error: nothing behind =>', line}
 							parser.compile = false

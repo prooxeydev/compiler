@@ -6,10 +6,6 @@ fn void<writeln(string msg) {
 	C.printf(msg)
 }
 
-fn voidptr<malloc(int size) {
-	C.malloc(size)
-}
-
-fn int<sizeof(voidptr type) {
-	C.sizeof(type)
+fn voidptr<malloc(int32 size) {
+	return C.malloc(size) as voidptr
 }

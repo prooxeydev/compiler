@@ -14,14 +14,15 @@ pub fn (mut parser Parser) create_c_file(out string) {
 
 	//Typedef
 	for def in parser.defs {
-		to := def.to[0]
 
-		mut typ := to
+		mut typ := def.to
 
-		if to.starts_with('C.') || to.starts_with('c.') {
+		if def.to.starts_with('C.') || def.to.starts_with('c.') {
 			typ = typ.replace('C.', '').replace('c.', '')
+			lines << 'typedef $typ X__$def.name;'
+		} else {
+			lines << 'typedef X__$typ X__$def.name;'
 		}
-		lines << 'typedef $typ X__$def.name;'
 	}
 
 	lines << ''
@@ -83,9 +84,32 @@ pub fn (mut parser Parser) create_c_file(out string) {
 						lines << '	X__$variable.typ.name $vname = $variable.data;'
 					}
 				}
-				.math {
+				.return_call {
+					raw, cast, to, primitive := impl.parse_return(line, parser) or { panic(err) }
 
+					mut cast_expr := ''
+
+					if cast {
+						if to.starts_with('C.') || to.starts_with('c.') {
+							n := to.replace('C.', '').replace('c.', '')
+							cast_expr = '($n)' 
+						} else {
+							cast_expr = '(X__$to)'
+						}
+					}
+
+					if raw.starts_with('C.') || raw.starts_with('c.') {
+						n := raw.replace('C.', '').replace('c.', '')
+						lines << '	return $cast_expr $n;'
+					} else {
+						if primitive {
+							lines << '	return $cast_expr $raw;'
+						} else {
+							lines << '	return $cast_expr X__$raw;'
+						}
+					}
 				}
+				else {}
 			}
 		}
 		lines << '}'

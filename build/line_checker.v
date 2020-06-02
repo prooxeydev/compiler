@@ -4,14 +4,23 @@ enum Typ {
 	function_call
 	definition
 	math
+	return_call
+	nothing
+	primitive
 }
 
 pub fn parse_line(line string) Typ {
-	if line.contains('(') && line.contains(')') {
-		//function call
-		return .function_call
+	if line.starts_with('return') {
+		return .return_call
 	} else if line.contains('=') {
 		return .definition
+	} else if line.contains('(') && line.contains(')') {
+		//function call
+		return .function_call
+	} else if line.starts_with('\'') && line.ends_with('\'') {
+		return .primitive
+	} else {
+		return .nothing
 	}
 }
 
@@ -115,17 +124,29 @@ pub fn (impl FunctionImplementation) parse_definition(line string, parser Parser
 	}
 	data = string(data_buf)
 	mut data_typ := ''
+	line_typ := parse_line(data)
 
-	if data.starts_with('\'') && data.ends_with('\'') {
-		//String
-		data_typ = 'string'
-		data = data.replace('\'', '"')
-	} else if data[0].is_digit() {
-		//int
-		data_typ = 'int'
-	} else {
-		//Struct or other
-		data_typ = ''
+	match line_typ {
+		.function_call {
+			func, _ := impl.parse_function(data, parser) or { panic(err) }
+			data_typ = func.return_val
+			if !data.starts_with('C.') && !data.starts_with('c.') {
+				data = 'X__$data'
+			}
+		}
+		.primitive {
+			if data.starts_with('\'') && data.ends_with('\'') {
+				//String
+				data_typ = 'string'
+				data = data.replace('\'', '"')
+			} else if data[0].is_digit() {
+				//int
+				data_typ = 'int'
+			}
+		}
+		else {
+
+		}
 	}
 
 	if !parser.check_typ(data_typ) {
@@ -146,4 +167,87 @@ pub fn (impl FunctionImplementation) parse_definition(line string, parser Parser
 	}
 
 	return name, variable, overwrite
+}
+
+pub fn (impl FunctionImplementation) parse_return(line string, parser Parser) ?(string, bool, string, bool) {
+	mut parameter := []string{}
+
+	mut last := []byte{}
+	mut str := false
+
+	for b in line.replace('return', '').trim_space() {
+		if b == '\''.bytes()[0] {
+			if str {
+				str = false
+			} else {
+				str = true
+			}
+		}
+		if b == ' '.bytes()[0] {
+			if !str {
+				if last.len > 0 {
+					parameter << string(last)
+					last = []byte{}
+				}
+			}
+		} else {
+			last << b
+		}
+	}
+	parameter << string(last)
+
+	mut ret_data := parameter[0]
+	ret_data_type := parse_line(ret_data)
+
+	mut cast := false
+	mut to := ''
+	mut primitive := false
+
+	match ret_data_type {
+		.function_call {
+			function, _ := impl.parse_function(ret_data, parser) or { panic(err) }
+			if parameter.len < 2 {
+				if impl.function.return_val != function.return_val {
+					return error('Wrong return value type')
+				}
+			} else {
+				cast = parameter[1] == 'as'
+				to = parameter[2]
+			}
+		}
+		.nothing {
+			return error('Wrong return argument')
+		}
+		.primitive {
+			primitive = true
+			mut data_typ := ''
+
+			if ret_data.starts_with('\'') && ret_data.ends_with('\'') {
+				//String
+				data_typ = 'string'
+				ret_data = ret_data.replace('\'', '"')
+			} else if ret_data[0].is_digit() {
+				//int
+				data_typ = 'int'
+			} else {
+				//Struct or other
+				data_typ = ''
+			}
+			if parameter.len < 2 {
+				if impl.function.return_val != data_typ {
+					return error('Wrong return value type')
+				}
+			} else {
+				cast = parameter[1] == 'as'
+				to = parameter[2]
+			}
+
+		}
+		else {
+			return error('Something went wrong (ERROR: 0x00001)')
+		}
+	}
+
+	return ret_data, cast, to, primitive
+
 }
