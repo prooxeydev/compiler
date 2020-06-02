@@ -1,5 +1,5 @@
-def int => C.int
+def int => C.int 
 def string => C.char**
 def void => C.void
 
-fn void<writeln(string)
+fn void<writeln(string msg)
