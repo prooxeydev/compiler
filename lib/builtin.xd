@@ -3,6 +3,8 @@
 def int => C.int
 def string => C.char*
 def void => C.void
+def voidptr => C.void*
 
 fn void<main()
 fn void<writeln(string msg)
+fn voidptr<malloc(int size)

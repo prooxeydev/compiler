@@ -37,7 +37,7 @@ pub fn (mut parser Parser) create_c_file(out string) {
 			params = params.substr(0, params.len - 1)
 		}
 
-		lines << '$retval X__$name ($params);'
+		lines << 'X__$retval X__$name ($params);'
 	}
 
 	lines << ''
@@ -55,7 +55,7 @@ pub fn (mut parser Parser) create_c_file(out string) {
 			params = params.substr(0, params.len - 1)
 		}
 
-		lines << '$retval X__$name ($params) {'
+		lines << 'X__$retval X__$name ($params) {'
 		for line in impl.code {
 			match parse_line(line) {
 				.function_call {

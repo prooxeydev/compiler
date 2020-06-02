@@ -256,14 +256,28 @@ fn (mut parser Parser)parse(file string) {
 										}
 									}
 									if end {
-										parser.functions << Function{name, return_val, parameter}
+										func := Function{name, return_val, parameter}
+										if !parser.check_func(func) {
+											parser.functions << func
+										} else {
+											//error
+											parser.errors << Error{i, file, 'Duplicate method: `$name`', line}
+											parser.compile = false											
+										}
 									} else {
 										//error
 										parser.errors << Error{i, file, 'Syntax error: Bracked wasn\'t closed', line}
 										parser.compile = false
 									}
 								} else {
-									parser.functions << Function{name, return_val, parameter}									
+									func := Function{name, return_val, parameter}
+									if !parser.check_func(func) {
+										parser.functions << func
+									} else {
+										//error
+										parser.errors << Error{i, file, 'Duplicate method: `$name`', line}
+										parser.compile = false											
+									}								
 								}	
 							} else {
 								//error

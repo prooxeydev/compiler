@@ -3,27 +3,21 @@
 typedef int X__int;
 typedef char* X__string;
 typedef void X__void;
+typedef void* X__voidptr;
 
-void X__main ();
-void X__writeln (X__string msg);
-void X__a ();
-void X__b ();
+X__void X__main ();
+X__void X__writeln (X__string msg);
+X__voidptr X__malloc (X__int size);
 
-void X__writeln (X__string msg) {
+X__void X__writeln (X__string msg) {
 	printf (msg);
 }
 
-void X__a () {
-	X__writeln ("Hello world!");
-	X__b ();
+X__voidptr X__malloc (X__int size) {
+	malloc (size);
 }
 
-void X__b () {
-	X__a ();
-}
-
-void X__main () {
-	X__a ();
+X__void X__main () {
 }
 
 int main() {
