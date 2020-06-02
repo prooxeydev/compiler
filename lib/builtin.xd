@@ -1,0 +1,5 @@
+def int => C.int
+def string => C.char**
+def void => C.void
+
+fn void<writeln(string)
