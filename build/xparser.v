@@ -58,6 +58,7 @@ fn parse(file string) Parser {
 	content := os.read_file(file) or { panic(err) }
 	lines := content.trim_space().split_into_lines()
 	mut open_brackets := 0
+	mut open_func := 0
 	for i, line in lines {
 		if line != '' {
 			data := line.split(' ')
@@ -88,7 +89,6 @@ fn parse(file string) Parser {
 						parser.errors << Error{i, file, 'Syntax error: not used <> or ""/\'\'', line}
 						parser.compile = false
 					} 
-
 				}
 				'def' {
 					mut after := ''
@@ -120,8 +120,6 @@ fn parse(file string) Parser {
 					mut after := line.replace(data[0] + ' ', '')
 					if after.ends_with('{') {
 						//Implementation
-					} else {
-						//FunctionDeclaration
 						mut return_val := 'void'
 						if after.contains('<') {
 							typ := after.split('<')[0]
@@ -175,7 +173,10 @@ fn parse(file string) Parser {
 									}
 								}
 								if end {
-									parser.functions << Function{name, return_val, parameter}
+									function := Function{name, return_val, parameter}
+									if parser.check_func(function) {
+										println('contains')
+									}
 								} else {
 									//error
 									parser.errors << Error{i, file, 'Syntax error: Bracked wasn\'t closed', line}
@@ -190,7 +191,80 @@ fn parse(file string) Parser {
 							parser.errors << Error{i, file, 'Return value type doesn\'t exists', line}
 							parser.compile = false
 						}
-
+					} else {
+						//FunctionDeclaration
+						mut return_val := 'void'
+						if after.contains('<') {
+							typ := after.split('<')[0]
+							after = after.replace('$typ<', '')
+							return_val = typ
+						}
+						if parser.check_typ(return_val) {
+							fn_data := after.split('(')
+							if fn_data.len == 2 {
+								open_brackets += 1
+								name := fn_data[0]
+								mut parameter := []Parameter{}
+								params := fn_data[1].split(',')
+								if params[0] != ')' {
+									mut last_typ := ''
+									mut end := false
+									for param in params {
+										par := param.trim_space().split(' ')
+										if par.len == 1 {
+											if parser.check_typ(last_typ) {
+												mut pname := par[0]
+												if par[0].ends_with(')') {
+													open_brackets -= 1
+													end = true
+													pname = pname.replace(')', '')
+												}
+												parameter << Parameter{pname, parser.get_typ(last_typ)}											
+											} else {
+												//error
+												parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
+												parser.compile = false
+											}
+										} else if par.len == 2 {
+											last_typ = par[0]
+											if parser.check_typ(last_typ) {
+												mut pname := par[1]
+												if par[1].ends_with(')') {
+													open_brackets -= 1
+													end = true
+													pname = pname.replace(')', '')
+												}
+												parameter << Parameter{pname, parser.get_typ(last_typ)}											
+											} else {
+												//error
+												parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
+												parser.compile = false
+											}
+										} else {
+											//error
+											parser.errors << Error{i, file, 'Wrong amount of data, maybe you missed a `,`', line}
+											parser.compile = false
+										}
+									}
+									if end {
+										parser.functions << Function{name, return_val, parameter}
+									} else {
+										//error
+										parser.errors << Error{i, file, 'Syntax error: Bracked wasn\'t closed', line}
+										parser.compile = false
+									}
+								} else {
+									parser.functions << Function{name, return_val, parameter}									
+								}	
+							} else {
+								//error
+								parser.errors << Error{i, file, 'Syntax error: Something went wrong', line}
+								parser.compile = false
+							}
+						} else {
+							parser.errors << Error{i, file, 'Return value type doesn\'t exists', line}
+							parser.compile = false
+						}
 					}
 				}
 				else {
@@ -204,6 +278,8 @@ fn parse(file string) Parser {
 			parser.compile = false
 		}
 		parser.errors << im.parser.errors
+		parser.defs << im.parser.defs
+		parser.functions << im.parser.functions
 	}
 	return parser
 }
@@ -225,3 +301,20 @@ fn (parser Parser) get_typ(name string) Defenition {
 	filter := parser.defs.filter(name == it.name)
 	return filter[0]
 } 
+
+fn (parser Parser) check_func(func Function) bool {
+	mut ret := false
+	for fun in parser.functions {
+		if func.name == fun.name {
+			if func.return_val == fun.return_val {
+				for i := 0; i < func.parameter.len; i++ {
+					if func.parameter[i].typ.name != fun.parameter[i].typ.name {
+						break
+					}
+				}
+				ret = true
+			}
+		}
+	}
+	return ret
+}

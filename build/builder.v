@@ -12,5 +12,5 @@ pub fn build(path string, args []string) {
 	builder.mod = mod
 	builder.output = '$path/tmp.c'
 	parser := parse('$mod.path/$mod.main')
-	println(parser)
+	parser.create_c_file(builder.output)
 }
