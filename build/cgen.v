@@ -61,10 +61,12 @@ pub fn (mut parser Parser) create_c_file(out string) {
 				.function_call {
 					function, parameter := parser.parse_function(line) or { panic(err) }
 					mut param := ''
-					for par in parameter {
-						param += par + ','
+					if parameter.len > 0 {
+						for par in parameter {
+							param += par + ','
+						}
+						param = param.substr(0, param.len - 1)
 					}
-					param = param.substr(0, param.len - 1)
 					if function.name.starts_with('C.') || function.name.starts_with('c.') {
 						n := function.name.replace('C.', '').replace('c.', '')
 						lines << '	${n} ($param);'

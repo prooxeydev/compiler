@@ -1,7 +1,7 @@
-#include <stdlib.h>
+#include <stdio.h>
 
 def int => C.int
-def string => C.char**
+def string => C.char*
 def void => C.void
 
 fn void<main()

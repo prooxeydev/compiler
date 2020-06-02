@@ -31,13 +31,17 @@ pub fn (mut parser Parser) parse_function(line string) ?(Function, []string) {
 		}
 		if b == ','.bytes()[0] {
 			if !str {
-				parameter << string(last)
-				last = []byte{}
+				if last.len > 0 {
+					parameter << string(last)
+					last = []byte{}
+				}
 			}
 		} else if b == ')'.bytes()[0] {
 			if !str {
-				parameter << string(last)
-				last = []byte{}
+				if last.len > 0 {
+					parameter << string(last)
+					last = []byte{}
+				}
 			}
 		} else {
 			last << b
