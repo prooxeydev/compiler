@@ -25,13 +25,14 @@ pub fn parse_line(line string) Typ {
 }
 
 pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) ?(Function, []string) {
-	data := line.split('(')
+	data := line.split_nth('(', 2)
 	name := data[0]
 	mut parameter := []string{}
 
 	mut last := []byte{}
 	mut str := false
 
+	mut open_b := 0
 	for b in data[1] {
 		if b == '\''.bytes()[0] {
 			if str {
@@ -39,6 +40,11 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 			} else {
 				str = true
 			}
+		}
+		if b == '('.bytes()[0] {
+			open_b += 1
+		}
+		if b == ')'.bytes()[0] {
 		}
 		if b == ','.bytes()[0] {
 			if !str {
@@ -50,6 +56,10 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 		} else if b == ')'.bytes()[0] {
 			if !str {
 				if last.len > 0 {
+					if open_b > 0 {
+						open_b -= 1
+						last << ')'.bytes()[0]
+					}
 					parameter << string(last)
 					last = []byte{}
 				}
@@ -59,24 +69,44 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 		}
 	}
 
-
-
 	if parser.check_func_exists(name) {
 		func := parser.get_func(name)
 		if func.parameter.len == parameter.len {
 			for i := 0; i < func.parameter.len; i++ {
 				match func.parameter[i].typ.name {
 					'string' {
-						isvar := impl.check_variable(parameter[i]) && impl.get_variable(parameter[i]).typ.name == 'string'
-						rawstring := parameter[i].trim_space().starts_with('\'') && parameter[i].trim_space().ends_with('\'')
+						println(parameter[i])
+						typ := parse_line(parameter[i].trim_space())
 
-						if !isvar && !rawstring {
-							return error('String isnt given')
-						}
-						if rawstring {
-							parameter[i] = parameter[i].trim_space().replace('\'', '"')
-						} else if isvar {
-							parameter[i] = parameter[i].trim_space()
+						match typ {
+							.primitive {
+								parameter[i] = parameter[i].trim_space().replace('\'', '"')
+							}
+							.nothing {
+								if !impl.check_variable(parameter[i].trim_space()) {
+									return error('1')
+								}
+								parameter[i] = parameter[i].trim_space()
+
+							}
+							.function_call {
+								function, param_val := impl.parse_function(parameter[i].trim_space(), parser) or { panic(err) }
+								mut param := ''
+								if param_val.len > 0 {
+									for par in param_val {
+										param += par + ','
+									}
+									param = param.substr(0, param.len - 1)
+								}
+								if function.name.starts_with('C.') || function.name.starts_with('c.') {
+									n := function.name.replace('C.', '').replace('c.', '')
+									parameter[i] = '${n} ($param);'
+								} else {
+									parameter[i] == 'X__$function.name ($param);'
+								}
+
+							}
+							else {}
 						}
 					}
 					else {
@@ -87,6 +117,7 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 			return func, parameter
 		} else {
 			//error
+			println(parameter)
 			return error('Not enought parameter ($parameter.len given but needs $func.parameter.len)')
 		}
 	} else if name.starts_with('C.') || name.starts_with('c.') {
@@ -216,7 +247,14 @@ pub fn (impl FunctionImplementation) parse_return(line string, parser Parser) ?(
 			}
 		}
 		.nothing {
-			return error('Wrong return argument')
+			if !impl.function.check_parameter(ret_data) {
+				return error('Wrong return argument')
+			}
+			primitive = true
+			/*if parameter.len < 2 {
+				cast = parameter[1] == 'as'
+				to = parameter[2]
+			}*/
 		}
 		.primitive {
 			primitive = true

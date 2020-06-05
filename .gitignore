@@ -4,4 +4,6 @@ compiler
 *.dylib
 *.dll
 test
-test/*
+*.c
+*.out
+*

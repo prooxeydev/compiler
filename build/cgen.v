@@ -81,7 +81,7 @@ pub fn (mut parser Parser) create_c_file(out string) {
 					if overwrite {
 						lines << '	$vname = $variable.data;'
 					} else {
-						lines << '	X__$variable.typ.name $vname = $variable.data;'
+						lines << '	X__$variable.typ.name $vname = $variable.data;'.replace('\'', '"')
 					}
 				}
 				.return_call {

@@ -81,7 +81,7 @@ fn (mut parser Parser)parse(file string) {
 						path := './lib/$name'
 						parser.parse(path)
 						parser.parse(path.substr(0, path.len - 1))
-					} else if data[1].starts_with('\'') && data[1].ends_with('\'') || data[1].starts_with('"') && data[1].ends_with('"') {
+					} else if (data[1].starts_with('\'') && data[1].ends_with('\'')) || (data[1].starts_with('"') && data[1].ends_with('"')) {
 						//local
 						name := data[1].replace('"', '').replace('"', '')
 						if name == '' {
@@ -150,7 +150,7 @@ fn (mut parser Parser)parse(file string) {
 													end = true
 													pname = pname.replace(')', '')
 												}
-												parameter << Parameter{pname, parser.get_typ(last_typ)}											
+												parameter << Parameter{pname, parser.get_typ(last_typ)}							
 											} else {
 												//error
 												parser.errors << Error{i, file, 'Parameter type `$last_typ` doesn\'t exists', line}
@@ -359,6 +359,11 @@ fn (parser Parser) check_func_exists(name string) bool {
 fn (parser Parser) get_func(name string) Function {
 	filter := parser.functions.filter(name == it.name)
 	return filter[0]
+}
+
+fn (func Function) check_parameter(name string) bool {
+	filter := func.parameter.filter(name == it.name)
+	return filter.len == 1
 }
 
 fn (impl FunctionImplementation) check_variable(name string) bool {

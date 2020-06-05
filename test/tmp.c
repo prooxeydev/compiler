@@ -13,11 +13,13 @@ typedef char* X__string;
 typedef void X__void;
 typedef void* X__voidptr;
 
+#define NAME = "Name"
+
 X__void X__main ();
 X__void X__write (X__string msg);
 X__void X__writeln (X__string msg);
 X__voidptr X__malloc (X__int32 size);
-X__string X__hello ();
+X__string X__hello (X__string str);
 
 X__void X__write (X__string msg) {
 	printf (msg);
@@ -31,14 +33,13 @@ X__voidptr X__malloc (X__int32 size) {
 	return (X__voidptr) malloc(size);
 }
 
-X__string X__hello () {
-	return (char*) "hello";
+X__string X__hello (X__string str) {
+	return  str;
 }
 
 X__void X__main () {
-	X__string a = X__hello();
-	X__writeln (a);
-	a = "b";
+	X__writeln (hello(hello('hi'));
+	X__string a = "b";
 	X__writeln (a);
 }
 

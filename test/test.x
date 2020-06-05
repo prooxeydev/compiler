@@ -1,14 +1,13 @@
 use <builtin.xd>
 
-fn string<hello()
+fn string<hello(string str)
 
-fn string<hello() {
-	return 'hello'
+fn string<hello(string str) {
+	return str
 }
 
 fn void<main() {
-	a = hello()
-	writeln(a)
+	writeln(hello(hello('hi')))
 	a = 'b'
 	writeln(a)
 }
