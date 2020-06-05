@@ -4,6 +4,7 @@ fn void<write(string msg) {
 
 fn void<writeln(string msg) {
 	C.printf(msg)
+	C.printf("\n")
 }
 
 fn voidptr<malloc(int32 size) {

@@ -60,7 +60,7 @@ pub fn create_empty_parser() Parser {
 	}
 }
 
-fn (mut parser Parser)parse(file string) {
+fn (mut parser Parser)parse(file, backend string) {
 	content := os.read_file(file) or { panic(err) }
 	lines := content.trim_space().split_into_lines()
 	mut open_brackets := 0
@@ -78,10 +78,10 @@ fn (mut parser Parser)parse(file string) {
 							parser.errors << Error{i, file, 'No file given', line}
 							parser.compile = false
 						}
-						path := './lib/$name'
-						parser.parse(path)
-						parser.parse(path.substr(0, path.len - 1))
-					} else if (data[1].starts_with('\'') && data[1].ends_with('\'')) || (data[1].starts_with('"') && data[1].ends_with('"')) {
+						path := './lib$backend/$name'
+						parser.parse(path, backend)
+						parser.parse(path.substr(0, path.len - 1), backend)
+					} else if (is_string(data[1])) || (data[1].starts_with('"') && data[1].ends_with('"')) {
 						//local
 						name := data[1].replace('"', '').replace('"', '')
 						if name == '' {
@@ -89,8 +89,8 @@ fn (mut parser Parser)parse(file string) {
 							parser.compile = false
 						}
 						path := './$name'
-						parser.parse(path)
-						parser.parse(path.substr(0, path.len - 1))
+						parser.parse(path, backend)
+						parser.parse(path.substr(0, path.len - 1), backend)
 					} else {
 						//error
 						parser.errors << Error{i, file, 'Syntax error: not used <> or ""/\'\'', line}
@@ -296,6 +296,9 @@ fn (mut parser Parser)parse(file string) {
 				}
 				'#include' {
 					parser.includes << line
+				}
+				'#import' {
+					parser.includes << line.substr(1, line.len)
 				}
 				else {
 					if open_func > 0 {

@@ -24,7 +24,7 @@ pub fn parse_line(line string) Typ {
 	}
 }
 
-pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) ?(Function, []string) {
+pub fn (impl FunctionImplementation) parse_function(line string, parser Parser, prefix, str_bracket, kprefix string) ?(Function, []string) {
 	data := line.split_nth('(', 2)
 	name := data[0]
 	mut parameter := []string{}
@@ -55,13 +55,15 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 			}
 		} else if b == ')'.bytes()[0] {
 			if !str {
-				if last.len > 0 {
+				if last.len > 0{
 					if open_b > 0 {
 						open_b -= 1
 						last << ')'.bytes()[0]
 					}
-					parameter << string(last)
-					last = []byte{}
+					if open_b == 0 {
+						parameter << string(last)
+						last = []byte{}
+					}
 				}
 			}
 		} else {
@@ -75,22 +77,21 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 			for i := 0; i < func.parameter.len; i++ {
 				match func.parameter[i].typ.name {
 					'string' {
-						println(parameter[i])
 						typ := parse_line(parameter[i].trim_space())
 
 						match typ {
 							.primitive {
-								parameter[i] = parameter[i].trim_space().replace('\'', '"')
+								parameter[i] = make_string(str_bracket, parameter[i])
 							}
 							.nothing {
 								if !impl.check_variable(parameter[i].trim_space()) {
-									return error('1')
+									return error('Variable doesn\'t exists.')
 								}
 								parameter[i] = parameter[i].trim_space()
 
 							}
 							.function_call {
-								function, param_val := impl.parse_function(parameter[i].trim_space(), parser) or { panic(err) }
+								function, param_val := impl.parse_function(parameter[i].trim_space(), parser, prefix, str_bracket, kprefix) or { panic(err) }
 								mut param := ''
 								if param_val.len > 0 {
 									for par in param_val {
@@ -98,11 +99,12 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 									}
 									param = param.substr(0, param.len - 1)
 								}
-								if function.name.starts_with('C.') || function.name.starts_with('c.') {
-									n := function.name.replace('C.', '').replace('c.', '')
-									parameter[i] = '${n} ($param);'
+
+								if check_prefix(prefix, function.name) {
+									n := replace_prefix(prefix, function.name)
+									parameter[i] = '$n ($param)'
 								} else {
-									parameter[i] == 'X__$function.name ($param);'
+									parameter[i] = '${kprefix}__$function.name ($param)'
 								}
 
 							}
@@ -117,21 +119,21 @@ pub fn (impl FunctionImplementation) parse_function(line string, parser Parser) 
 			return func, parameter
 		} else {
 			//error
-			println(parameter)
 			return error('Not enought parameter ($parameter.len given but needs $func.parameter.len)')
 		}
-	} else if name.starts_with('C.') || name.starts_with('c.') {
+	} else if check_prefix(prefix, name) {
 		for i, _ in parameter {
-			parameter[i] = parameter[i].trim_space().replace('\'', '"')
+			parameter[i] = make_string(str_bracket, parameter[i])
 		}
 		return Function{name}, parameter
 	} else {
+		println(name)
 		//error
 		return error('Function doesnt exists')
 	}
 }
 
-pub fn (impl FunctionImplementation) parse_definition(line string, parser Parser) ?(string, Variable, bool) {
+pub fn (impl FunctionImplementation) parse_definition(line string, parser Parser, prefix, str_bracket, kprefix string) ?(string, Variable, bool) {
 	mut name := ''
 	mut name_buf := []byte{}
 	mut data := ''
@@ -159,17 +161,17 @@ pub fn (impl FunctionImplementation) parse_definition(line string, parser Parser
 
 	match line_typ {
 		.function_call {
-			func, _ := impl.parse_function(data, parser) or { panic(err) }
+			func, _ := impl.parse_function(data, parser, prefix, str_bracket, kprefix) or { panic(err) }
 			data_typ = func.return_val
-			if !data.starts_with('C.') && !data.starts_with('c.') {
-				data = 'X__$data'
+			if !check_prefix(prefix, data) {
+				data = '${kprefix}__$data'
 			}
 		}
 		.primitive {
 			if data.starts_with('\'') && data.ends_with('\'') {
 				//String
 				data_typ = 'string'
-				data = data.replace('\'', '"')
+				data = make_string(str_bracket, data)
 			} else if data[0].is_digit() {
 				//int
 				data_typ = 'int'
@@ -200,7 +202,7 @@ pub fn (impl FunctionImplementation) parse_definition(line string, parser Parser
 	return name, variable, overwrite
 }
 
-pub fn (impl FunctionImplementation) parse_return(line string, parser Parser) ?(string, bool, string, bool) {
+pub fn (impl FunctionImplementation) parse_return(line string, parser Parser, prefix, str_bracket, kprefix string) ?(string, bool, string, bool) {
 	mut parameter := []string{}
 
 	mut last := []byte{}
@@ -236,9 +238,9 @@ pub fn (impl FunctionImplementation) parse_return(line string, parser Parser) ?(
 
 	match ret_data_type {
 		.function_call {
-			function, _ := impl.parse_function(ret_data, parser) or { panic(err) }
+			function, _ := impl.parse_function(ret_data, parser, prefix, str_bracket, kprefix) or { panic(err) }
 			if parameter.len < 2 {
-				if impl.function.return_val != function.return_val {
+				if (impl.function.return_val != function.return_val) && !check_prefix(prefix, function.name) {
 					return error('Wrong return value type')
 				}
 			} else {
@@ -263,7 +265,7 @@ pub fn (impl FunctionImplementation) parse_return(line string, parser Parser) ?(
 			if ret_data.starts_with('\'') && ret_data.ends_with('\'') {
 				//String
 				data_typ = 'string'
-				ret_data = ret_data.replace('\'', '"')
+				ret_data = make_string(str_bracket, ret_data)
 			} else if ret_data[0].is_digit() {
 				//int
 				data_typ = 'int'
